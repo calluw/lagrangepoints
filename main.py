@@ -15,7 +15,7 @@ class Planet:
         self.v = self.v0
         self.m = m
 
- def jupiter_solution(jup,sun):
+def jupiter_solution(jup,sun):
     # Function which uses the planet object for Jupiter-like jup and the solar object
     # sun in order to construct the known analytic solution for the position of jup given
     # a time from its initial position
