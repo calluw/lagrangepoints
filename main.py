@@ -8,18 +8,18 @@ import numpy as np
 from scipy.integrate import odeint
 
 class Planet:
-    def __init__(self,rx,ry,rz,vx,vy,vz,m):
+    def __init__(self,y0,m):
         # Create the planet/celestial object with its position r and velocity v as 3D vectors
         # Mass m defined, for test masses set m=0, for Jupiter mass/Solar mass use m/=0
-        self.r0 = np.array([rx,ry,rz])
+        self.r0 = np.array([y0[0],y0[1],y0[2]])
         self.r = self.r0
-        self.v0 = np.array([vx,vy,vz])
+        self.v0 = np.array([y0[3],y0[4],y0[5]])
         self.v = self.v0
         self.m = m
 
 ## Globals
-jup = Planet(5.2,0,0,0,0,0,0.001) # Create the Jupiter-like m=0.001 at x=5.2 (v is unimportant)
-sun = Planet(0,0,0,0,0,0,1) # Create a Solar mass at the origin, which does not move
+jup = Planet([5.2,0,0,0,0,0],0.001) # Create the Jupiter-like m=0.001 at x=5.2 (v is unimportant)
+sun = Planet([0,0,0,0,0,0],1) # Create a Solar mass at the origin, which does not move
 
 def jup_soln(t):
     # Function which uses the planet object for Jupiter-like jup and the solar object
@@ -48,13 +48,12 @@ def grav_derivatives(y, t, objects):
     v = np.array([y[3],y[4],y[5]]) # Create the self velocity vector
     r_dash = v # Trivial ODEs from time derivates
     jup.r = np.array(jup_soln(t)+[0]) # Update Jupiter position in plane z=0 at t
-    grav_acc = np.zeros((1,3)) # Make acc vector, note that acceleration will be in (AU s^-2)
+    grav_acc = np.zeros(3) # Make acc vector, note that acceleration will be in (AU s^-2)
     for object in objects:
-        dist_vec = object.r-r # Create the vectorial distance
+        dist_vec = r-object.r # Create the vectorial distance
         dist_to_obj = np.linalg.norm(dist_vec) # And the scalar distance
         f_strength = (-4*(np.pi**2)*object.m)/(dist_to_obj**3) # The 'strength' of the force
         grav_acc += f_strength*dist_vec # Acceleration += (-GM/r^3)*_r_, update acceleration
-    print(grav_acc) 
     v_dash = grav_acc # Derivative of velocities are the accelerations
     return r_dash.tolist()+v_dash.tolist() # Return the derivatives as concatenated 6-vector
 
@@ -64,7 +63,7 @@ def integrate_gravity(y0, t_points, objects):
     # stepping) given a landscape of massive bodies in the objects array of Planet class objects.
     # Outputs the y 6-vector at the time points t_points.
     
-    y = odeint(grav_derivates,y0,t_points,args=(objects,)) # Calling the integrator function
+    y = odeint(grav_derivatives,y0,t_points,args=(objects,)) # Calling the integrator function
     return y # Return a list giving the y 6-vector at each time point
 
 
