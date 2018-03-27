@@ -18,14 +18,15 @@ class Planet:
         self.m = m
 
 ## Globals
-jup = Planet([0,0,0,0,0,0],0.001) # Create the Jupiter-like m=0.001 (positions not defined)
-sun = Planet([0,0,0,0,0,0],1) # Create a Solar mass
+jup = Planet([0.0,0.0,0.0,0.0,0.0,0.0],0.001) # Create the Jupiter-like m=0.001 (positions not defined)
+sun = Planet([0.0,0.0,0.0,0.0,0.0,0.0],1) # Create a Solar mass
+dist = 5.2 # Define the average distance between the 2 bodies
 
 def update_barycentre():
     # Define the barycentre of the Sun-Jupiter-like system as [0,0,0]
     # Hence using M_j/M_sol, and their distance d, get distance of Jup/Sun:
     global jup, sun # Read in Jupiter-like and Solar objects to update
-    dist = 5.2 # Average distance from Jupiter-like to Sun
+    global dist # Read in their average separation
     rad_s = dist/(1+(sun.m/jup.m)) # Definition of barycentre
     print(rad_s)
     rad_j = dist-rad_s
@@ -37,32 +38,47 @@ def update_barycentre():
     jup.r = jup.r0 # Update their positions just in case
 
 update_barycentre() # Ensure the barycentre distances are updated for future calculations
-## CURRENT ISSUE WITH ROUNDING IN THE ARRAYS WHEN UPDATING SUN.r0 ETC ##
 
-def jup_soln(t):
+def exact_soln(t):
     # Function which uses the planet object for Jupiter-like jup and the solar object
-    # sun in order to construct the known analytic solution for the position of jup given
-    # a time from its initial position, under the assumption that jup orbit is in x-y plane
-    # The analytic solution in these units gives v_jup = 2pi*sqrt(1/r), and R_jup is 5.2AU 
-    # (5.2 units), hence the angular velocity v=rw => w = 2pi*sqrt(1/r^3)
+    # sun in order to construct the known analytic solution for the positions given
+    # a time from initial position, under the assumption that corotational orbit is in x-y
     # This function can accept either a single time point in [] or an array of them as t.
-
-    global jup # Import the jupiter object 
-    r = np.linalg.norm(jup.r) # Get radius of Jupiter-like
-    angular = 2*np.pi*np.sqrt(1/r**3) # A constant in rad/yr
-    # Next calculate initial angle, angle defined as 0 radians being Jupiter at x=5.2,y=0
-    init_angle = np.arcsin(jup.r0[1]/r) # Using sin(theta) = opp/hyp
+    
+    global jup, sun # Import the celestial objects 
+    global dist # Distance needed for angular velocity calc
+    jup_r = np.linalg.norm(jup.r) # Get rotational radius of Jupiter-like
+    angular = 2*np.pi*np.sqrt(1/(jup_r))*(1/dist) # A constant angular velocity in rad/yr for both
+    
+    ## Jupiter
+    # Next calculate initial angle, angle defined as 0 radians being Jupiter at x=r,y=0
+    init_angle_jup = np.arcsin(jup.r0[1]/jup_r) # Using sin(theta) = opp/hyp
     jupiter_positions = []
     for t_point in t:
         # Go through each time point
         # Then use the angular velocity to add on the angle for a given time t/yr since start
-        new_angle = init_angle + (angular*t_point)
-        jup_x = r*np.cos(new_angle)
-        jup_y = r*np.sin(new_angle)
+        new_angle = init_angle_jup + (angular*t_point)
+        jup_x = jup_r*np.cos(new_angle)
+        jup_y = jup_r*np.sin(new_angle)
         jupiter_positions.append([jup_x,jup_y]) 
     if len(jupiter_positions) < 2:
         jupiter_positions = jupiter_positions[0] # If length 1, remove the outer list layer 
-    return jupiter_positions
+
+    ## Sun
+    init_angle = init_angle_jup + np.pi # Always starts pi away from Jupiter posn
+    sun_r = np.linalg.norm(sun.r) # Get rotational radius of the Sun
+    solar_positions = []
+    for t_point in t:
+        # Go through each time point
+        # Then use the angular velocity to add on the angle for a given time t/yr since start
+        new_angle = init_angle + (angular*t_point)
+        sun_x = sun_r*np.cos(new_angle)
+        sun_y = sun_r*np.sin(new_angle)
+        solar_positions.append([sun_x,sun_y]) 
+    if len(solar_positions) < 2:
+        solar_positions = solar_positions[0] # If length 1, remove the outer list layer 
+
+    return [jupiter_positions, solar_positions]
 
 
 def grav_derivatives(y, t, objects):
@@ -73,7 +89,9 @@ def grav_derivatives(y, t, objects):
     r = np.array([y[0],y[1],y[2]]) # Create the self position vector
     v = np.array([y[3],y[4],y[5]]) # Create the self velocity vector
     r_dash = v # Trivial ODEs from time derivates
-    jup.r = np.array(jup_soln([t])+[0]) # Update Jupiter position in plane z=0 at single time point t
+    exact = exact_soln([t]) # Get the exact solution at t
+    jup.r = np.array(exact[0]+[0]) # Update Jupiter position in plane z=0 at single time point t
+    sun.r = np.array(exact[1]+[0]) # Update Solar position in plane z=0 at single time point t
     grav_acc = np.zeros(3) # Make acc vector, note that acceleration will be in (AU s^-2)
     for object in objects:
         dist_vec = r-object.r # Create the vectorial distance
@@ -91,5 +109,4 @@ def integrate_gravity(y0, t_points, objects):
     
     y = odeint(grav_derivatives,y0,t_points,args=(objects,)) # Calling the integrator function
     return y # Return a list giving the y 6-vector at each time point
-
 
