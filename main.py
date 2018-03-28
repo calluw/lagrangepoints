@@ -28,12 +28,9 @@ def update_barycentre():
     global jup, sun # Read in Jupiter-like and Solar objects to update
     global dist # Read in their average separation
     rad_s = dist/(1+(sun.m/jup.m)) # Definition of barycentre
-    print(rad_s)
     rad_j = dist-rad_s
-    print(rad_j)
     sun.r0[0] = -rad_s # Create a Sun in -x dirn
     jup.r0[0] = rad_j # And a Jupiter in +x dirn
-    print(sun.r0,jup.r0)
     sun.r = sun.r0
     jup.r = jup.r0 # Update their positions just in case
 
