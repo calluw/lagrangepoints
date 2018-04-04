@@ -2,6 +2,8 @@
 # negligible masses around the Lagrange points of large mass planet-star systems, to 
 # work out the scaling relationship of the stable orbit region with the planetary mass.
 # Units used in the problem are length unit 1AU, time unit 1yr, mass unit 1solarmass
+# In this file, the frame of reference is the inertial frame of the Solar System,
+# so the Sun, Jupiter and Lagrange point all rotate in this frame, no inertial forces.
 
 ## Imports
 import numpy as np
@@ -18,7 +20,8 @@ class Planet:
         self.m = m
 
 ## Globals
-jup = Planet([0.0,0.0,0.0,0.0,0.0,0.0],0.001) # Create the Jupiter-like m=0.001 (positions not defined)
+jup_m = 0.001 # Control the mass of the Jupiter-like for the scaling relation
+jup = Planet([0.0,0.0,0.0,0.0,0.0,0.0],jup_m) # Create the Jupiter-like (positions not defined)
 sun = Planet([0.0,0.0,0.0,0.0,0.0,0.0],1) # Create a Solar mass
 dist = 5.2 # Define the average distance between the 2 bodies
 
@@ -49,7 +52,7 @@ def exact_soln(t):
     
     ## Jupiter
     # Next calculate initial angle, angle defined as 0 radians being Jupiter at x=r,y=0
-    init_angle_jup = np.arcsin(jup.r0[1]/jup_r) # Using sin(theta) = opp/hyp
+    init_angle_jup = np.arctan2(jup.r0[1],jup.r0[0]) # Using unambiguous angle
     jupiter_positions = []
     for t_point in t:
         # Go through each time point
@@ -62,13 +65,13 @@ def exact_soln(t):
         jupiter_positions = jupiter_positions[0] # If length 1, remove the outer list layer 
 
     ## Sun
-    init_angle = init_angle_jup + np.pi # Always starts pi away from Jupiter posn
+    init_angle_sun = init_angle_jup + np.pi # Always starts pi away from Jupiter posn
     sun_r = np.linalg.norm(sun.r) # Get rotational radius of the Sun
     solar_positions = []
     for t_point in t:
         # Go through each time point
         # Then use the angular velocity to add on the angle for a given time t/yr since start
-        new_angle = init_angle + (angular*t_point)
+        new_angle = init_angle_sun + (angular*t_point)
         sun_x = sun_r*np.cos(new_angle)
         sun_y = sun_r*np.sin(new_angle)
         solar_positions.append([sun_x,sun_y]) 
@@ -107,3 +110,44 @@ def integrate_gravity(y0, t_points, objects):
     y = odeint(grav_derivatives,y0,t_points,args=(objects,)) # Calling the integrator function
     return y # Return a list giving the y 6-vector at each time point
 
+def trojan_stability_measure(t_points, soln, sign):
+    # Function which takes the end point of the asteroid at the final time point
+    # provided, and then calculates the exact Jupiter point at that time, and then
+    # the theoretical exact position of the Lagrance point being used (given that
+    # it was at sgn(sign)*pi/3 from Jupiter-like), then returns the difference as
+    # a fraction of the Jupiter radius. 
+    global dist # Read in the Sun-Jupiter distance
+    final_t = [t_points[-1]] # Select final slice for exact solution
+    total_exact_soln = exact_soln(final_t)
+    jup_soln = np.array(total_exact_soln[0]+[0]) # Gives the Jup position at final t_point
+    sun_soln = np.array(total_exact_soln[1]+[0]) # Gives the Sun position at final t_point
+    trojan_soln = np.array(soln[-1][0:3]) # Gives the calculated Trojan position at final t_points
+    jup_r = np.linalg.norm(jup_soln)
+    jup_angle = np.arctan2(jup_soln[1],jup_soln[0]) # Unambiguous angle from -pi > pi
+    trojan_angle = jup_angle + sign*(np.pi/3) # Generate angle planet would be at
+    theor_trojan_soln = sun_soln + np.array([dist*np.cos(trojan_angle),dist*np.sin(trojan_angle),0])
+    trojan_diff_dist = np.linalg.norm(trojan_soln-theor_trojan_soln)
+    trojan_frac_diff = trojan_diff_dist/jup_r
+    return trojan_frac_diff
+
+def perturbed_initial_condition(dr,dv,angle):
+    # Function which produces the initial condition 6-vector for a planet
+    # y0 = [x,y,z,vx,vy,vz] based on its radian  angle from Jupiter (negative is counted
+    # as clockwise from Jupiter) and a perturbation (dx,dy,dz) from that point.
+    # The initial velocity is given by the 3-vector v.
+    global jup, sun # Read in the celestial objects
+    global dist # Read in the solar-Jupiter distance
+    jup_r = np.linalg.norm(jup.r) # Get the radius of Jupiter-like
+    jup_angle = np.arcsin(jup.r0[1]/jup_r) # Initial angle of Jupiter-like
+    new_angle = jup_angle + angle # Angle wrt the Sun
+    planet_x = dist*np.cos(new_angle)+sun.r0[0] # Calculate the angle from Sun position!
+    planet_y = dist*np.sin(new_angle)+sun.r0[1]
+    planet_pos = [planet_x+dr[0], planet_y+dr[1], dr[2]] # Unperturbed pos is in plane z=0
+    planet_r = np.linalg.norm([planet_x,planet_y])
+    # Then also calculate the "circular velocity" of orbit to match Jupiter angular speed
+    trojan_angle = np.arctan2(planet_y,planet_x) # This is the undisturbed angle wrt the ORIGIN
+    planet_vx = -2*np.pi*(planet_r/dist)*np.sqrt(1/jup_r)*np.sin(trojan_angle)
+    planet_vy = 2*np.pi*(planet_r/dist)*np.sqrt(1/jup_r)*np.cos(trojan_angle)
+    planet_vel = [planet_vx+dv[0], planet_vy+dv[1], dv[2]] # Add velocity perturbation
+    # Now perturbed position and circular velocities calculated, return 6-vector:
+    return planet_pos+planet_vel
