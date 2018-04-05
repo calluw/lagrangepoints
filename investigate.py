@@ -22,18 +22,18 @@ def plot_solution_xy(t_points, soln, fig_num):
     plt.plot(troj_pos[:,0],troj_pos[:,1],'r-')
     # plt.show()
 
-angle = -np.pi/3
-dr = (0*np.array([np.cos(angle),np.sin(angle),0])).tolist()
-dv = (0*np.array([-np.sin(angle),np.cos(angle),0])).tolist()
-# y0 = perturbed_initial_condition(dr,dv,angle)
-y0 = perturbed_initial_condition_rot(dr,dv,angle)
+angle = -np.pi/3 # Leading or trailing group (+ve is leading)
+dr = (0*np.array([np.cos(angle),np.sin(angle),0])).tolist() # Generate positional perturbation
+dv = (0*np.array([-np.sin(angle),np.cos(angle),0])).tolist() # Generate velocity perturbation
+# y0 = perturbed_initial_condition(dr,dv,angle) # Initial position in the case of inertial frame
+y0 = perturbed_initial_condition_rot(dr,dv,angle) # Initial position in case of rotating frame
 trojan = Planet(y0,0) # Create the Trojan object (mass unimportant)
-t_points = np.linspace(0,500*11.8,20000)
-# soln = integrate_gravity(y0, t_points, [jup,sun]) 
-soln = integrate_gravity_rot(y0, t_points, [jup,sun]) 
+t_points = np.linspace(0,500*11.8,20000) # Define the time points used in simulation
+# soln = integrate_gravity(y0, t_points, [jup,sun]) # Perform the integration (inertially)
+soln = integrate_gravity_rot(y0, t_points, [jup,sun]) # Integrate in rotating frame (inertial forces)
 
-plot_solution_xy(t_points, soln, 1)
-# print(trojan_stability_measure(t_points, soln, 1))
+plot_solution_xy(t_points, soln, 1) # Plot solution in x-y plane
+# print(trojan_stability_measure(t_points, soln, 1)) # Give the measure of the stability of soln
 print(trojan_stability_measure_rot(t_points, soln, -1))
 # plt.figure(2)
 # total_fraction_arr = [] # Get the fractional distance to show lateral displacements
