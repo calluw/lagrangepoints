@@ -1,4 +1,4 @@
-# File which uses an adaptive Runge-Kutta method in order to investigate the orbits of
+# File which uses an adaptive LSODA method in order to investigate the orbits of
 # negligible masses around the Lagrange points of large mass planet-star systems, to 
 # work out the scaling relationship of the stable orbit region with the planetary mass.
 # Units used in the problem are length unit 1AU, time unit 1yr, mass unit 1solarmass
@@ -7,7 +7,7 @@
 # forces
 
 ## Imports
-from main import *
+from main import * # Take existing objects and barycentre calculation.
 
 def grav_derivatives_rot(y, t, objects):
     # Function which calculates the derivatives of the planet's position and velocity
